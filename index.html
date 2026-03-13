@@ -1,3 +1,43 @@
+
+<!--
+=========================================================
+PAINEL DE VOOS – ARQUIVO PRINCIPAL
+=========================================================
+
+COMO ATUALIZAR VOOS (SUPER SIMPLES):
+
+1. Abra este arquivo no navegador.
+2. Use os botões do próprio painel para:
+   - adicionar voo
+   - editar voo
+   - excluir voo
+
+3. Depois clique em:
+   "Exportar / Baixar HTML"
+
+4. O navegador vai baixar um NOVO arquivo HTML
+   já com os voos atualizados.
+
+5. Renomeie para:
+   index.html
+
+6. Suba no GitHub substituindo o arquivo antigo.
+
+Pronto. O site será atualizado.
+
+
+INSTALAR NO CELULAR:
+- iPhone (Safari): Compartilhar > Adicionar à Tela de Início
+- Android (Chrome): menu ⋮ > Adicionar à tela inicial / Instalar app
+
+DICA IMPORTANTE:
+Sempre guarde uma cópia chamada:
+
+voos_master.html
+
+Assim você nunca perde seus dados.
+
+=========================================================
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -502,6 +542,16 @@
       color: var(--t3); border-top: 1px solid var(--border);
     }
   </style>
+
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Voos" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
 </head>
 <body>
 
@@ -782,24 +832,9 @@
 
 <footer>João (GIG) &amp; Natalia (POA) · <span id="footStatus"></span></footer>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (() => {
   const STORAGE_KEY = "voos_dashboard_v7_clean";
-  const SUPABASE_URL = "https://zyhkhrnqvxuzglweotab.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5aGtocm5xdnh1emdsd2VvdGFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NDAyMjksImV4cCI6MjA4OTAxNjIyOX0.zKv9bkX5EmalM-4Iy_xE1q1pbKXeFUAd65ScpqFTYrg";
-  const SUPABASE_TABLE = "voos";
-
-  const hasSupabase = Boolean(
-    SUPABASE_URL &&
-    SUPABASE_ANON_KEY &&
-    !SUPABASE_ANON_KEY.includes("COLE_AQUI") &&
-    window.supabase
-  );
-
-  const supabaseClient = hasSupabase
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-    : null;
 
   const EMBEDDED_DATA = [
   {
@@ -1466,225 +1501,62 @@
   }
 
   /* ── data ── */
-  function rowKey(r) {
-    return `${(r.dataIda||"").trim()}|${(r.obs||"").trim()}|${(r.od||"").trim()}|${(r.passageiro||"").trim()}`;
-  }
+  function loadData() {
+    const feriados = gerarFeriados();
 
-  function normalizeRow(r) {
-    return {
-      id: r.id ?? undefined,
-      od: r.od ?? "",
-      dataIda: r.dataIda ?? r.data_ida ?? "",
-      horaIda: r.horaIda ?? r.hora_ida ?? "",
-      reservaIda: r.reservaIda ?? r.reserva_ida ?? "",
-      dataVolta: r.dataVolta ?? r.data_volta ?? "",
-      horaVolta: r.horaVolta ?? r.hora_volta ?? "",
-      reservaVolta: r.reservaVolta ?? r.reserva_volta ?? "",
-      companhia: r.companhia ?? "",
-      passageiro: r.passageiro ?? "",
-      obs: r.obs ?? "",
-      juntosTipo: r.juntosTipo ?? r.juntos_tipo ?? undefined,
-      odNatalia: r.odNatalia ?? r.od_natalia ?? undefined,
-      horaNatalia: r.horaNatalia ?? r.hora_natalia ?? undefined,
-      locNatalia: r.locNatalia ?? r.loc_natalia ?? undefined,
-      aComprar: r.aComprar ?? r.a_comprar ?? undefined,
-      trechos: Array.isArray(r.trechos) ? r.trechos : undefined,
-    };
-  }
-
-  function toDbRow(r) {
-    return {
-      od: r.od ?? "",
-      data_ida: r.dataIda ?? "",
-      hora_ida: r.horaIda ?? "",
-      reserva_ida: r.reservaIda ?? "",
-      data_volta: r.dataVolta ?? "",
-      hora_volta: r.horaVolta ?? "",
-      reserva_volta: r.reservaVolta ?? "",
-      companhia: r.companhia ?? "",
-      passageiro: r.passageiro ?? "",
-      obs: r.obs ?? "",
-      juntos_tipo: r.juntosTipo ?? null,
-      od_natalia: r.odNatalia ?? null,
-      hora_natalia: r.horaNatalia ?? null,
-      loc_natalia: r.locNatalia ?? null,
-      a_comprar: r.aComprar ?? null,
-      trechos: Array.isArray(r.trechos) ? r.trechos : null,
-    };
-  }
-
-  function isPersistableRow(r) {
-    return !isFeriado(r);
-  }
-
-  function ocupadasDe(rows) {
-    const set = new Set();
-    rows.forEach(r => {
-      if (isFeriado(r)) return;
-      if (r.juntosTipo === "viagem_complexa") {
-        (r.trechos||[]).forEach(t => {
-          const d = parseDate(t.data);
-          if (d) set.add(d.toDateString());
-        });
-        const di = parseDate(r.dataIda), dv = parseDate(r.dataVolta);
-        if (di && dv) {
-          const c = new Date(di);
-          while (c <= dv) {
-            set.add(c.toDateString());
-            c.setDate(c.getDate() + 1);
-          }
+    // Datas ocupadas por viagens do EMBEDDED_DATA
+    function ocupadasDe(rows) {
+      const set = new Set();
+      const pd = s => { const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec((s||"").trim()); return m?new Date(+m[3],+m[2]-1,+m[1]):null; };
+      rows.forEach(r => {
+        if (!r.od && !r.reservaIda && !r.passageiro) return; // é feriado, ignora
+        // trechos de viagem complexa
+        if (r.juntosTipo === "viagem_complexa") {
+          (r.trechos||[]).forEach(t => { const d=pd(t.data); if(d) set.add(d.toDateString()); });
+          const di=pd(r.dataIda), dv=pd(r.dataVolta);
+          if(di&&dv){ let c=new Date(di); while(c<=dv){set.add(c.toDateString());c.setDate(c.getDate()+1);} }
+        } else {
+          const di=pd(r.dataIda), dv=pd(r.dataVolta);
+          if(di) set.add(di.toDateString());
+          if(dv) set.add(dv.toDateString());
         }
-      } else {
-        const di = parseDate(r.dataIda), dv = parseDate(r.dataVolta);
-        if (di) set.add(di.toDateString());
-        if (dv) set.add(dv.toDateString());
-      }
-    });
-    return set;
-  }
+      });
+      return set;
+    }
 
-  function filtrarFeriados(fList, rows) {
-    const ocup = ocupadasDe(rows);
-    return fList.filter(f => {
-      const d = parseDate((f.dataIda||"").trim());
-      return d ? !ocup.has(d.toDateString()) : true;
-    });
-  }
+    function filtrarFeriados(fList, rows) {
+      const ocup = ocupadasDe(rows);
+      return fList.filter(f => {
+        const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec((f.dataIda||"").trim());
+        if(!m) return true;
+        const d = new Date(+m[3],+m[2]-1,+m[1]);
+        return !ocup.has(d.toDateString());
+      });
+    }
 
-  function mergeWithGeneratedHolidays(rows) {
-    const realRows = (rows || []).map(normalizeRow);
-    const feriados = gerarFeriados();
-    const feriadosFiltrados = filtrarFeriados(feriados, realRows);
-    const have = new Set(realRows.map(rowKey));
-    const merged = realRows.slice();
-    feriadosFiltrados.forEach(f => {
-      if (!have.has(rowKey(f))) merged.push(f);
-    });
-    return merged;
-  }
-
-  function loadLocalData() {
-    const feriados = gerarFeriados();
-    const emb = EMBEDDED_DATA.map(normalizeRow);
-    const feriadosFiltrados = filtrarFeriados(feriados, emb);
-    const base = [...emb, ...feriadosFiltrados.filter(f => !emb.some(r => rowKey(r) === rowKey(f)))];
+    const feriadosFiltrados = filtrarFeriados(feriados, EMBEDDED_DATA);
+    const base = [...EMBEDDED_DATA, ...feriadosFiltrados.filter(f =>
+      !EMBEDDED_DATA.some(r => r.dataIda === f.dataIda && r.obs === f.obs)
+    )];
 
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return base;
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return base;
-      return mergeWithGeneratedHolidays(parsed);
-    } catch {
-      return base;
-    }
+      const key = r => `${(r.dataIda||"").trim()}|${(r.obs||"").trim()}`;
+      const have = new Set(parsed.map(key));
+      const merged = parsed.slice();
+      // feriados filtrados pelas datas ocupadas dos dados salvos
+      const ferSalvos = filtrarFeriados(feriados, parsed);
+      ferSalvos.forEach(f => { if (!have.has(key(f))) merged.push(f); });
+      return merged;
+    } catch { return base; }
   }
 
-  function clearLegacyLocalCache() {
-    try { localStorage.removeItem(STORAGE_KEY); } catch {}
-  }
+  function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data)); }
 
-  async function fetchRowsFromSupabase() {
-    const { data, error } = await supabaseClient
-      .from(SUPABASE_TABLE)
-      .select("*")
-      .order("data_ida", { ascending: true })
-      .order("hora_ida", { ascending: true });
-
-    if (error) throw error;
-    return (data || []).map(normalizeRow);
-  }
-
-  async function seedSupabaseIfEmpty() {
-    const { count, error } = await supabaseClient
-      .from(SUPABASE_TABLE)
-      .select("*", { count: "exact", head: true });
-
-    if (error) throw error;
-    if ((count || 0) > 0) return false;
-
-    const seedRows = EMBEDDED_DATA
-      .map(normalizeRow)
-      .filter(isPersistableRow)
-      .map(toDbRow);
-
-    if (!seedRows.length) return false;
-
-    const { error: insertError } = await supabaseClient.from(SUPABASE_TABLE).insert(seedRows);
-    if (insertError) throw insertError;
-    return true;
-  }
-
-  async function loadRemoteData() {
-    clearLegacyLocalCache();
-    await seedSupabaseIfEmpty();
-    const rows = await fetchRowsFromSupabase();
-    return mergeWithGeneratedHolidays(rows);
-  }
-
-  async function addRow(row) {
-    if (hasSupabase) {
-      const { error } = await supabaseClient.from(SUPABASE_TABLE).insert(toDbRow(row));
-      if (error) throw error;
-      return;
-    }
-    state.data = state.data.filter(isPersistableRow);
-    state.data.push(normalizeRow(row));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data.filter(isPersistableRow)));
-    state.data = mergeWithGeneratedHolidays(state.data.filter(isPersistableRow));
-  }
-
-  async function updateRow(row) {
-    if (hasSupabase) {
-      if (!row.id) throw new Error("Linha sem id para atualizar no Supabase.");
-      const { error } = await supabaseClient
-        .from(SUPABASE_TABLE)
-        .update(toDbRow(row))
-        .eq("id", row.id);
-      if (error) throw error;
-      return;
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data.filter(isPersistableRow)));
-  }
-
-  async function deleteRowByIdOrIndex(row, idx) {
-    if (hasSupabase) {
-      if (!row.id) throw new Error("Linha sem id para excluir no Supabase.");
-      const { error } = await supabaseClient
-        .from(SUPABASE_TABLE)
-        .delete()
-        .eq("id", row.id);
-      if (error) throw error;
-      return;
-    }
-    state.data.splice(idx, 1);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data.filter(isPersistableRow)));
-    state.data = mergeWithGeneratedHolidays(state.data.filter(isPersistableRow));
-  }
-
-  async function replaceAllRows(rows) {
-    const persistable = (rows || []).map(normalizeRow).filter(isPersistableRow);
-    if (hasSupabase) {
-      const { error: delError } = await supabaseClient.from(SUPABASE_TABLE).delete().neq("id", 0);
-      if (delError) throw delError;
-      if (persistable.length) {
-        const { error: insError } = await supabaseClient.from(SUPABASE_TABLE).insert(persistable.map(toDbRow));
-        if (insError) throw insError;
-      }
-      return;
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(persistable));
-    state.data = mergeWithGeneratedHolidays(persistable);
-  }
-
-  async function refreshData() {
-    state.data = hasSupabase ? await loadRemoteData() : loadLocalData();
-    updateYearFilter();
-    render();
-    setStatus(hasSupabase ? `sincronizado · ${state.data.length} linhas` : `local · ${state.data.length} linhas`);
-  }
-
-  const state = { data: [], filterPax: "all", filterExtra: "all", filterCia: "" };
+  const state = { data: loadData(), filterPax: "all", filterExtra: "all", filterCia: "" };
 
   /* ── year filter ── */
   function updateYearFilter() {
@@ -1891,25 +1763,6 @@
     return "";
   }
 
-  function canMutateRow(r) {
-    if (isFeriado(r)) return false;
-    if (hasSupabase) return !!r.id;
-    return true;
-  }
-
-  function rowActionButtons(r, idx, compact=false) {
-    if (!canMutateRow(r)) {
-      return compact
-        ? `<span style="font-size:11px;color:var(--t3)">somente leitura</span>`
-        : `<div style="font-size:11px;color:var(--t3);padding:2px 0">somente leitura</div>`;
-    }
-    const size = compact ? "font-size:11px;padding:3px 8px" : "font-size:11px;padding:4px 10px";
-    return `
-      <button class="btn" style="${size}" onclick="toggleEdit(${idx})">Editar</button>
-      <button class="btn danger" style="${size}" onclick="deleteRow(${idx})">Excluir</button>
-    `;
-  }
-
   function buildCard(r) {
     const idx = r.__idx;
     const fer = isFeriado(r);
@@ -1969,8 +1822,9 @@
   <div class="edit-panel" id="ep_${idx}">
     ${buildEditPanel(r, idx)}
   </div>
-  <div style="padding:6px 14px 8px;display:flex;gap:6px;border-top:1px solid var(--border);align-items:center">
-    ${rowActionButtons(r, idx)}
+  <div style="padding:6px 14px 8px;display:flex;gap:6px;border-top:1px solid var(--border)">
+    <button class="btn" style="font-size:11px;padding:4px 10px" onclick="toggleEdit(${idx})">Editar</button>
+    <button class="btn danger" style="font-size:11px;padding:4px 10px" onclick="deleteRow(${idx})">Excluir</button>
   </div>
 </div>`;
   }
@@ -2078,8 +1932,9 @@
   <div class="edit-panel" id="ep_${idx}">
     ${buildEditPanel(r, idx)}
   </div>
-  <div style="padding:6px 14px 8px;display:flex;gap:6px;border-top:1px solid var(--border);align-items:center">
-    ${rowActionButtons(r, idx)}
+  <div style="padding:6px 14px 8px;display:flex;gap:6px;border-top:1px solid var(--border)">
+    <button class="btn" style="font-size:11px;padding:4px 10px" onclick="toggleEdit(${idx})">Editar</button>
+    <button class="btn danger" style="font-size:11px;padding:4px 10px" onclick="deleteRow(${idx})">Excluir</button>
   </div>
 </div>`;
   }
@@ -2148,8 +2003,9 @@
   <div class="edit-panel" id="ep_${idx}">
     ${buildEditPanel(r, idx)}
   </div>
-  <div style="padding:6px 14px 8px;display:flex;gap:6px;border-top:1px solid var(--border);align-items:center">
-    ${rowActionButtons(r, idx)}
+  <div style="padding:6px 14px 8px;display:flex;gap:6px;border-top:1px solid var(--border)">
+    <button class="btn" style="font-size:11px;padding:4px 10px" onclick="toggleEdit(${idx})">Editar</button>
+    <button class="btn danger" style="font-size:11px;padding:4px 10px" onclick="deleteRow(${idx})">Excluir</button>
   </div>
 </div>`;
   }
@@ -2257,21 +2113,15 @@
     ep.classList.toggle("open");
   };
 
-  window.saveEdit = async idx => {
+  window.saveEdit = idx => {
     const ep = $(`ep_${idx}`);
     ep.querySelectorAll("[data-f]").forEach(el => {
       state.data[idx][el.dataset.f] = el.value;
     });
-    try {
-      await updateRow(state.data[idx]);
-      await refreshData();
-      setStatus("salvo");
-      ep.classList.remove("open");
-    } catch (err) {
-      console.error(err);
-      alert("Falha ao salvar: " + (err.message || err));
-      setStatus("erro ao salvar");
-    }
+    saveData();
+    updateYearFilter();
+    render();
+    setStatus("salvo");
   };
 
   window.cancelEdit = idx => {
@@ -2279,17 +2129,13 @@
     ep.classList.remove("open");
   };
 
-  window.deleteRow = async idx => {
+  window.deleteRow = idx => {
     if (!confirm("Excluir esta linha?")) return;
-    try {
-      await deleteRowByIdOrIndex(state.data[idx], idx);
-      await refreshData();
-      setStatus("excluído");
-    } catch (err) {
-      console.error(err);
-      alert("Falha ao excluir: " + (err.message || err));
-      setStatus("erro ao excluir");
-    }
+    state.data.splice(idx, 1);
+    saveData();
+    updateYearFilter();
+    render();
+    setStatus("excluído");
   };
 
   /* ── MODAL ── */
@@ -2364,7 +2210,7 @@
   $("btnModalCancel").addEventListener("click", closeModal);
   $("modalOverlay").addEventListener("click", e => { if (e.target === $("modalOverlay")) closeModal(); });
 
-  $("btnModalAdd").addEventListener("click", async () => {
+  $("btnModalAdd").addEventListener("click", () => {
     const isBloqueado = modalTipo === "bloqueado";
     const dataIda = isBloqueado ? $("a_di_b").value.trim() : $("a_di").value.trim();
 
@@ -2401,16 +2247,12 @@
       };
     }
 
-    try {
-      await addRow(row);
-      await refreshData();
-      setStatus("adicionado");
-      closeModal();
-    } catch (err) {
-      console.error(err);
-      alert("Falha ao adicionar: " + (err.message || err));
-      setStatus("erro ao adicionar");
-    }
+    state.data.push(row);
+    saveData();
+    updateYearFilter();
+    render();
+    setStatus("adicionado");
+    closeModal();
   });
 
   $("filtroCia").addEventListener("change", () => { state.filterCia = $("filtroCia").value; render(); });
@@ -2461,65 +2303,54 @@
   });
 
   $("btnImportJson").addEventListener("click", () => $("importFile").click());
-  $("importFile").addEventListener("change", async e => {
+  $("importFile").addEventListener("change", e => {
     const f = e.target.files && e.target.files[0];
     if (!f) return;
     const reader = new FileReader();
-    reader.onload = async () => {
+    reader.onload = () => {
       try {
         const parsed = JSON.parse(reader.result);
         if (!Array.isArray(parsed)) throw new Error("Precisa ser um array.");
-        await replaceAllRows(parsed);
-        await refreshData();
-        setStatus("JSON importado");
+        state.data = parsed.map(r => ({
+          od:r.od??"", dataIda:r.dataIda??"", horaIda:r.horaIda??"",
+          reservaIda:r.reservaIda??"", dataVolta:r.dataVolta??"", horaVolta:r.horaVolta??"",
+          reservaVolta:r.reservaVolta??"", companhia:r.companhia??"",
+          passageiro:r.passageiro??"", obs:r.obs??"",
+          juntosTipo:r.juntosTipo??undefined,
+          odNatalia:r.odNatalia??undefined,
+          horaNatalia:r.horaNatalia??undefined,
+          locNatalia:r.locNatalia??undefined,
+          aComprar:r.aComprar??undefined,
+        }));
+        saveData(); updateYearFilter(); render(); setStatus("JSON importado");
       } catch(err) { alert("Falha ao importar: " + err.message); }
     };
     reader.readAsText(f);
     e.target.value = "";
   });
 
-  $("btnWipe").addEventListener("click", async () => {
+  $("btnWipe").addEventListener("click", () => {
     if (!confirm("Apaga todos os voos e volta só com os feriados. Continuar?")) return;
-    try {
-      await replaceAllRows([]);
-      await refreshData();
-      setStatus("resetado");
-    } catch (err) {
-      console.error(err);
-      alert("Falha ao resetar: " + (err.message || err));
-      setStatus("erro ao resetar");
-    }
+    state.data = gerarFeriados();
+    saveData(); updateYearFilter(); render(); setStatus("resetado");
   });
 
   /* ── init ── */
-  async function init() {
-    if (!hasSupabase) {
-      state.data = loadLocalData();
-      updateYearFilter();
-      render();
-      setStatus(`local · ${state.data.length} linhas · cole a chave do Supabase para sincronizar`);
-      return;
-    }
-
-    try {
-      await refreshData();
-      supabaseClient
-        .channel("voos-realtime")
-        .on("postgres_changes", { event: "*", schema: "public", table: SUPABASE_TABLE }, async () => {
-          await refreshData();
-        })
-        .subscribe();
-    } catch (err) {
-      console.error(err);
-      state.data = loadLocalData();
-      updateYearFilter();
-      render();
-      setStatus("erro Supabase · usando modo local");
-    }
-  }
-
-  init();
+  updateYearFilter();
+  render();
+  setStatus(`ok · ${state.data.length} linhas`);
 })();
 </script>
+
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js").catch(err => {
+        console.log("Service worker não registrado:", err);
+      });
+    });
+  }
+</script>
+
 </body>
 </html>
