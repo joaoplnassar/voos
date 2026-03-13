@@ -1580,6 +1580,10 @@
     }
   }
 
+  function clearLegacyLocalCache() {
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  }
+
   async function fetchRowsFromSupabase() {
     const { data, error } = await supabaseClient
       .from(SUPABASE_TABLE)
@@ -1612,6 +1616,7 @@
   }
 
   async function loadRemoteData() {
+    clearLegacyLocalCache();
     await seedSupabaseIfEmpty();
     const rows = await fetchRowsFromSupabase();
     return mergeWithGeneratedHolidays(rows);
@@ -1886,6 +1891,25 @@
     return "";
   }
 
+  function canMutateRow(r) {
+    if (isFeriado(r)) return false;
+    if (hasSupabase) return !!r.id;
+    return true;
+  }
+
+  function rowActionButtons(r, idx, compact=false) {
+    if (!canMutateRow(r)) {
+      return compact
+        ? `<span style="font-size:11px;color:var(--t3)">somente leitura</span>`
+        : `<div style="font-size:11px;color:var(--t3);padding:2px 0">somente leitura</div>`;
+    }
+    const size = compact ? "font-size:11px;padding:3px 8px" : "font-size:11px;padding:4px 10px";
+    return `
+      <button class="btn" style="${size}" onclick="toggleEdit(${idx})">Editar</button>
+      <button class="btn danger" style="${size}" onclick="deleteRow(${idx})">Excluir</button>
+    `;
+  }
+
   function buildCard(r) {
     const idx = r.__idx;
     const fer = isFeriado(r);
@@ -1945,9 +1969,8 @@
   <div class="edit-panel" id="ep_${idx}">
     ${buildEditPanel(r, idx)}
   </div>
-  <div style="padding:6px 14px 8px;display:flex;gap:6px;border-top:1px solid var(--border)">
-    <button class="btn" style="font-size:11px;padding:4px 10px" onclick="toggleEdit(${idx})">Editar</button>
-    <button class="btn danger" style="font-size:11px;padding:4px 10px" onclick="deleteRow(${idx})">Excluir</button>
+  <div style="padding:6px 14px 8px;display:flex;gap:6px;border-top:1px solid var(--border);align-items:center">
+    ${rowActionButtons(r, idx)}
   </div>
 </div>`;
   }
@@ -2055,9 +2078,8 @@
   <div class="edit-panel" id="ep_${idx}">
     ${buildEditPanel(r, idx)}
   </div>
-  <div style="padding:6px 14px 8px;display:flex;gap:6px;border-top:1px solid var(--border)">
-    <button class="btn" style="font-size:11px;padding:4px 10px" onclick="toggleEdit(${idx})">Editar</button>
-    <button class="btn danger" style="font-size:11px;padding:4px 10px" onclick="deleteRow(${idx})">Excluir</button>
+  <div style="padding:6px 14px 8px;display:flex;gap:6px;border-top:1px solid var(--border);align-items:center">
+    ${rowActionButtons(r, idx)}
   </div>
 </div>`;
   }
@@ -2126,9 +2148,8 @@
   <div class="edit-panel" id="ep_${idx}">
     ${buildEditPanel(r, idx)}
   </div>
-  <div style="padding:6px 14px 8px;display:flex;gap:6px;border-top:1px solid var(--border)">
-    <button class="btn" style="font-size:11px;padding:4px 10px" onclick="toggleEdit(${idx})">Editar</button>
-    <button class="btn danger" style="font-size:11px;padding:4px 10px" onclick="deleteRow(${idx})">Excluir</button>
+  <div style="padding:6px 14px 8px;display:flex;gap:6px;border-top:1px solid var(--border);align-items:center">
+    ${rowActionButtons(r, idx)}
   </div>
 </div>`;
   }
